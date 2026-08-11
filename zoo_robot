@@ -1,0 +1,589 @@
+#!/usr/bin/env python3
+"""
+سیستم رباتیک مدیریت باغ وحش
+Zoo Management Robot System
+"""
+
+from enum import Enum
+from datetime import datetime
+from typing import List, Dict, Optional
+import json
+import random
+
+
+class AnimalType(Enum):
+    MAMMAL = "پستاندار"
+    BIRD = "پرنده"
+    REPTILE = "خزنده"
+    AMPHIBIAN = "دوزیست"
+    FISH = "ماهی"
+
+
+class HealthStatus(Enum):
+    EXCELLENT = "عالی"
+    GOOD = "خوب"
+    FAIR = "متوسط"
+    POOR = "ضعیف"
+    CRITICAL = "بحرانی"
+
+
+class FeedingStatus(Enum):
+    FED = "غذا داده شده"
+    HUNGRY = "گرسنه"
+    OVERFED = "پرخوری کرده"
+
+
+class Animal:
+    def __init__(self, animal_id: str, name: str, species: str, 
+                 animal_type: AnimalType, age: int, weight: float):
+        self.animal_id = animal_id
+        self.name = name
+        self.species = species
+        self.animal_type = animal_type
+        self.age = age
+        self.weight = weight
+        self.health_status = HealthStatus.GOOD
+        self.feeding_status = FeedingStatus.HUNGRY
+        self.last_feeding_time: Optional[datetime] = None
+        self.last_checkup_time: Optional[datetime] = None
+        self.enclosure_id: Optional[str] = None
+        self.medical_records: List[Dict] = []
+        
+    def feed(self, food_type: str, quantity: float) -> str:
+        """غذا دادن به حیوان"""
+        self.last_feeding_time = datetime.now()
+        self.feeding_status = FeedingStatus.FED
+        
+        record = {
+            "timestamp": datetime.now().isoformat(),
+            "action": "feeding",
+            "food_type": food_type,
+            "quantity": quantity
+        }
+        self.medical_records.append(record)
+        
+        return f"{self.name} با موفقیت غذا دریافت کرد: {food_type} ({quantity} کیلوگرم)"
+    
+    def health_check(self, veterinarian: str, notes: str = "") -> str:
+        """بررسی سلامت حیوان"""
+        self.last_checkup_time = datetime.now()
+        
+        # شبیه‌سازی بررسی سلامت
+        if random.random() > 0.8:
+            self.health_status = HealthStatus.POOR
+        elif random.random() > 0.9:
+            self.health_status = HealthStatus.CRITICAL
+        else:
+            self.health_status = random.choice([
+                HealthStatus.EXCELLENT, 
+                HealthStatus.GOOD, 
+                HealthStatus.FAIR
+            ])
+        
+        record = {
+            "timestamp": datetime.now().isoformat(),
+            "action": "health_check",
+            "veterinarian": veterinarian,
+            "notes": notes,
+            "health_status": self.health_status.value
+        }
+        self.medical_records.append(record)
+        
+        return f"بررسی سلامت {self.name} انجام شد. وضعیت: {self.health_status.value}"
+    
+    def to_dict(self) -> Dict:
+        """تبدیل به دیکشنری"""
+        return {
+            "animal_id": self.animal_id,
+            "name": self.name,
+            "species": self.species,
+            "animal_type": self.animal_type.value,
+            "age": self.age,
+            "weight": self.weight,
+            "health_status": self.health_status.value,
+            "feeding_status": self.feeding_status.value,
+            "last_feeding_time": self.last_feeding_time.isoformat() if self.last_feeding_time else None,
+            "last_checkup_time": self.last_checkup_time.isoformat() if self.last_checkup_time else None,
+            "enclosure_id": self.enclosure_id,
+            "medical_records_count": len(self.medical_records)
+        }
+
+
+class Enclosure:
+    def __init__(self, enclosure_id: str, name: str, capacity: int, 
+                 temperature: float, humidity: float):
+        self.enclosure_id = enclosure_id
+        self.name = name
+        self.capacity = capacity
+        self.temperature = temperature
+        self.humidity = humidity
+        self.animals: List[str] = []  # animal_ids
+        self.cleaning_schedule: List[Dict] = []
+        self.maintenance_log: List[Dict] = []
+        
+    def add_animal(self, animal_id: str) -> bool:
+        """افزودن حیوان به محوطه"""
+        if len(self.animals) >= self.capacity:
+            return False
+        self.animals.append(animal_id)
+        return True
+    
+    def remove_animal(self, animal_id: str) -> bool:
+        """حذف حیوان از محوطه"""
+        if animal_id in self.animals:
+            self.animals.remove(animal_id)
+            return True
+        return False
+    
+    def clean(self, cleaner: str) -> str:
+        """تمیز کردن محوطه"""
+        cleaning_record = {
+            "timestamp": datetime.now().isoformat(),
+            "cleaner": cleaner,
+            "status": "completed"
+        }
+        self.cleaning_schedule.append(cleaning_record)
+        return f"محوطه {self.name} تمیز شد توسط {cleaner}"
+    
+    def update_environment(self, temperature: float, humidity: float) -> str:
+        """به‌روزرسانی شرایط محیطی"""
+        old_temp = self.temperature
+        old_humidity = self.humidity
+        
+        self.temperature = temperature
+        self.humidity = humidity
+        
+        return f"شرایط محیطی {self.name} به‌روز شد: دما {old_temp}→{temperature}°C، رطوبت {old_humidity}→{humidity}%"
+    
+    def get_occupancy_rate(self) -> float:
+        """درصد اشغال محوطه"""
+        return (len(self.animals) / self.capacity) * 100 if self.capacity > 0 else 0
+    
+    def to_dict(self) -> Dict:
+        """تبدیل به دیکشنری"""
+        return {
+            "enclosure_id": self.enclosure_id,
+            "name": self.name,
+            "capacity": self.capacity,
+            "current_occupancy": len(self.animals),
+            "occupancy_rate": self.get_occupancy_rate(),
+            "temperature": self.temperature,
+            "humidity": self.humidity,
+            "animals": self.animals,
+            "cleaning_count": len(self.cleaning_schedule)
+        }
+
+
+class Staff:
+    def __init__(self, staff_id: str, name: str, role: str, shift: str):
+        self.staff_id = staff_id
+        self.name = name
+        self.role = role
+        self.shift = shift
+        self.assigned_tasks: List[Dict] = []
+        self.work_hours: float = 0
+        
+    def assign_task(self, task: Dict) -> str:
+        """اختصاص وظیفه به کارمند"""
+        task["assigned_time"] = datetime.now().isoformat()
+        task["status"] = "pending"
+        self.assigned_tasks.append(task)
+        return f"وظیفه به {self.name} اختصاص داده شد: {task.get('description', 'بدون توضیح')}"
+    
+    def complete_task(self, task_index: int) -> str:
+        """تکمیل وظیفه"""
+        if 0 <= task_index < len(self.assigned_tasks):
+            self.assigned_tasks[task_index]["status"] = "completed"
+            self.assigned_tasks[task_index]["completed_time"] = datetime.now().isoformat()
+            return f"وظیفه {task_index+1} توسط {self.name} تکمیل شد"
+        return "وظیفه نامعتبر است"
+    
+    def to_dict(self) -> Dict:
+        """تبدیل به دیکشنری"""
+        return {
+            "staff_id": self.staff_id,
+            "name": self.name,
+            "role": self.role,
+            "shift": self.shift,
+            "total_tasks": len(self.assigned_tasks),
+            "completed_tasks": sum(1 for t in self.assigned_tasks if t.get("status") == "completed"),
+            "work_hours": self.work_hours
+        }
+
+
+class ZooRobot:
+    def __init__(self, zoo_name: str):
+        self.zoo_name = zoo_name
+        self.animals: Dict[str, Animal] = {}
+        self.enclosures: Dict[str, Enclosure] = {}
+        self.staff: Dict[str, Staff] = {}
+        self.visitors_count: int = 0
+        self.daily_revenue: float = 0
+        self.system_logs: List[Dict] = []
+        self.created_at = datetime.now()
+        
+        self._log_system_event("system_start", "سیستم رباتیک باغ وحش راه‌اندازی شد")
+    
+    def _log_system_event(self, event_type: str, message: str):
+        """ثبت رویداد سیستم"""
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "event_type": event_type,
+            "message": message
+        }
+        self.system_logs.append(log_entry)
+    
+    def add_animal(self, animal: Animal) -> str:
+        """افزودن حیوان جدید"""
+        self.animals[animal.animal_id] = animal
+        self._log_system_event("animal_added", f"حیوان {animal.name} ({animal.species}) اضافه شد")
+        return f"حیوان {animal.name} با موفقیت به باغ وحش اضافه شد"
+    
+    def remove_animal(self, animal_id: str) -> str:
+        """حذف حیوان"""
+        if animal_id in self.animals:
+            animal = self.animals[animal_id]
+            
+            # حذف از محوطه
+            if animal.enclosure_id and animal.enclosure_id in self.enclosures:
+                self.enclosures[animal.enclosure_id].remove_animal(animal_id)
+            
+            del self.animals[animal_id]
+            self._log_system_event("animal_removed", f"حیوان {animal.name} حذف شد")
+            return f"حیوان {animal.name} با موفقیت حذف شد"
+        return "حیوان یافت نشد"
+    
+    def add_enclosure(self, enclosure: Enclosure) -> str:
+        """افزودن محوطه جدید"""
+        self.enclosures[enclosure.enclosure_id] = enclosure
+        self._log_system_event("enclosure_added", f"محوطه {enclosure.name} اضافه شد")
+        return f"محوطه {enclosure.name} با موفقیت اضافه شد"
+    
+    def assign_animal_to_enclosure(self, animal_id: str, enclosure_id: str) -> str:
+        """اختصاص حیوان به محوطه"""
+        if animal_id not in self.animals:
+            return "حیوان یافت نشد"
+        if enclosure_id not in self.enclosures:
+            return "محوطه یافت نشد"
+        
+        animal = self.animals[animal_id]
+        enclosure = self.enclosures[enclosure_id]
+        
+        # حذف از محوطه قبلی
+        if animal.enclosure_id and animal.enclosure_id in self.enclosures:
+            self.enclosures[animal.enclosure_id].remove_animal(animal_id)
+        
+        # افزودن به محوطه جدید
+        if enclosure.add_animal(animal_id):
+            animal.enclosure_id = enclosure_id
+            self._log_system_event("animal_assigned", f"{animal.name} به {enclosure.name} اختصاص داده شد")
+            return f"{animal.name} به محوطه {enclosure.name} اختصاص داده شد"
+        else:
+            return "محوطه ظرفیت کامل دارد"
+    
+    def add_staff(self, staff: Staff) -> str:
+        """افزودن کارمند جدید"""
+        self.staff[staff.staff_id] = staff
+        self._log_system_event("staff_added", f"کارمند {staff.name} اضافه شد")
+        return f"کارمند {staff.name} با موفقیت اضافه شد"
+    
+    def feed_all_animals(self, food_type: str = "غذای عمومی", quantity_per_animal: float = 2.0) -> Dict:
+        """غذا دادن به همه حیوانات"""
+        results = {"success": 0, "failed": 0, "details": []}
+        
+        for animal in self.animals.values():
+            try:
+                result = animal.feed(food_type, quantity_per_animal)
+                results["success"] += 1
+                results["details"].append(result)
+            except Exception as e:
+                results["failed"] += 1
+                results["details"].append(f"خطا برای {animal.name}: {str(e)}")
+        
+        self._log_system_event("feeding_completed", f"غذا دادن به {results['success']} حیوان انجام شد")
+        return results
+    
+    def health_check_all(self, veterinarian: str) -> Dict:
+        """بررسی سلامت همه حیوانات"""
+        results = {"checked": 0, "concerns": [], "summary": {}}
+        
+        health_counts = {status.value: 0 for status in HealthStatus}
+        
+        for animal in self.animals.values():
+            animal.health_check(veterinarian)
+            results["checked"] += 1
+            health_counts[animal.health_status.value] += 1
+            
+            if animal.health_status in [HealthStatus.POOR, HealthStatus.CRITICAL]:
+                results["concerns"].append({
+                    "animal": animal.name,
+                    "species": animal.species,
+                    "status": animal.health_status.value
+                })
+        
+        results["summary"] = health_counts
+        self._log_system_event("health_check_completed", f"بررسی سلامت {results['checked']} حیوان انجام شد")
+        return results
+    
+    def clean_all_enclosures(self, cleaner: str) -> Dict:
+        """تمیز کردن همه محوطه‌ها"""
+        results = {"cleaned": 0, "details": []}
+        
+        for enclosure in self.enclosures.values():
+            result = enclosure.clean(cleaner)
+            results["cleaned"] += 1
+            results["details"].append(result)
+        
+        self._log_system_event("cleaning_completed", f"{results['cleaned']} محوطه تمیز شد")
+        return results
+    
+    def register_visitor(self, count: int = 1, ticket_price: float = 50000) -> str:
+        """ثبت ورود بازدیدکننده"""
+        self.visitors_count += count
+        revenue = count * ticket_price
+        self.daily_revenue += revenue
+        
+        self._log_system_event("visitors_registered", f"{count} بازدیدکننده وارد شدند")
+        return f"{count} بازدیدکننده ثبت شدند. درآمد: {revenue:,.0f} تومان"
+    
+    def get_zoo_statistics(self) -> Dict:
+        """دریافت آمار باغ وحش"""
+        stats = {
+            "zoo_name": self.zoo_name,
+            "total_animals": len(self.animals),
+            "total_enclosures": len(self.enclosures),
+            "total_staff": len(self.staff),
+            "total_visitors": self.visitors_count,
+            "daily_revenue": self.daily_revenue,
+            "animals_by_type": {},
+            "health_summary": {},
+            "enclosure_occupancy": [],
+            "system_uptime_hours": 0
+        }
+        
+        # آمار بر اساس نوع
+        for animal in self.animals.values():
+            type_name = animal.animal_type.value
+            stats["animals_by_type"][type_name] = stats["animals_by_type"].get(type_name, 0) + 1
+        
+        # خلاصه سلامت
+        health_counts = {status.value: 0 for status in HealthStatus}
+        for animal in self.animals.values():
+            health_counts[animal.health_status.value] += 1
+        stats["health_summary"] = health_counts
+        
+        # اشغال محوطه‌ها
+        for enclosure in self.enclosures.values():
+            stats["enclosure_occupancy"].append({
+                "name": enclosure.name,
+                "occupancy_rate": enclosure.get_occupancy_rate()
+            })
+        
+        # زمان فعالیت سیستم
+        uptime = datetime.now() - self.created_at
+        stats["system_uptime_hours"] = uptime.total_seconds() / 3600
+        
+        return stats
+    
+    def generate_report(self, report_type: str = "daily") -> str:
+        """تولید گزارش"""
+        stats = self.get_zoo_statistics()
+        
+        report = f"""
+========================================
+گزارش {report_type.upper()} باغ وحش {self.zoo_name}
+تاریخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+========================================
+
+📊 آمار کلی:
+   - تعداد کل حیوانات: {stats['total_animals']}
+   - تعداد محوطه‌ها: {stats['total_enclosures']}
+   - تعداد کارکنان: {stats['total_staff']}
+   - بازدیدکنندگان کل: {stats['total_visitors']}
+   - درآمد روزانه: {stats['daily_revenue']:,.0f} تومان
+
+🐾 توزیع حیوانات بر اساس نوع:
+"""
+        for animal_type, count in stats['animals_by_type'].items():
+            report += f"   - {animal_type}: {count}\n"
+        
+        report += f"""
+❤️ وضعیت سلامت:
+"""
+        for status, count in stats['health_summary'].items():
+            report += f"   - {status}: {count}\n"
+        
+        report += f"""
+🏠 وضعیت محوطه‌ها:
+"""
+        for enclosure in stats['enclosure_occupancy']:
+            report += f"   - {enclosure['name']}: {enclosure['occupancy_rate']:.1f}% اشغال\n"
+        
+        report += f"""
+⏱️ زمان فعالیت سیستم: {stats['system_uptime_hours']:.2f} ساعت
+========================================
+"""
+        
+        self._log_system_event("report_generated", f"گزارش {report_type} تولید شد")
+        return report
+    
+    def export_data(self, filename: str = "zoo_data.json") -> str:
+        """صادرات داده‌ها به فایل JSON"""
+        data = {
+            "zoo_info": {
+                "name": self.zoo_name,
+                "created_at": self.created_at.isoformat(),
+                "exported_at": datetime.now().isoformat()
+            },
+            "statistics": self.get_zoo_statistics(),
+            "animals": [animal.to_dict() for animal in self.animals.values()],
+            "enclosures": [enclosure.to_dict() for enclosure in self.enclosures.values()],
+            "staff": [staff.to_dict() for staff in self.staff.values()],
+            "recent_logs": self.system_logs[-50:]  # آخرین 50 لاگ
+        }
+        
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            self._log_system_event("data_exported", f"داده‌ها به {filename} صادر شدند")
+            return f"داده‌ها با موفقیت به {filename} صادر شدند"
+        except Exception as e:
+            return f"خطا در صادرات داده‌ها: {str(e)}"
+    
+    def to_dict(self) -> Dict:
+        """تبدیل کل سیستم به دیکشنری"""
+        return {
+            "zoo_name": self.zoo_name,
+            "created_at": self.created_at.isoformat(),
+            "total_animals": len(self.animals),
+            "total_enclosures": len(self.enclosures),
+            "total_staff": len(self.staff),
+            "visitors_count": self.visitors_count,
+            "daily_revenue": self.daily_revenue,
+            "system_logs_count": len(self.system_logs)
+        }
+
+
+def create_sample_zoo() -> ZooRobot:
+    """ایجاد یک باغ وحش نمونه با داده‌های اولیه"""
+    zoo = ZooRobot("باغ وحش تهران")
+    
+    # ایجاد حیوانات نمونه
+    animals_data = [
+        ("A001", "شیرخان", "شیر آفریقایی", AnimalType.MAMMAL, 5, 190.5),
+        ("A002", "فیل‌بانو", "فیل آسیایی", AnimalType.MAMMAL, 12, 3500.0),
+        ("A003", "طاووس", "طاووس هندی", AnimalType.BIRD, 3, 4.5),
+        ("A004", "تمساح", "تمساح نیل", AnimalType.REPTILE, 8, 250.0),
+        ("A005", "قورباغه", "قورباغه سمی", AnimalType.AMPHIBIAN, 2, 0.05),
+        ("A006", "ماهی طلایی", "ماهی کوی", AnimalType.FISH, 4, 3.2),
+        ("A007", "زرافه", "زرافه گردن‌دراز", AnimalType.MAMMAL, 6, 800.0),
+        ("A008", "پنگوئن", "پنگوئن امپراتور", AnimalType.BIRD, 4, 25.0),
+    ]
+    
+    for data in animals_data:
+        animal = Animal(*data)
+        zoo.add_animal(animal)
+    
+    # ایجاد محوطه‌ها
+    enclosures_data = [
+        ("E001", "محوطه پستانداران بزرگ", 10, 25.0, 45.0),
+        ("E002", "باغ پرندگان", 20, 22.0, 50.0),
+        ("E003", "خانه خزندگان", 15, 28.0, 60.0),
+        ("E004", "استخر ماهی‌ها", 30, 20.0, 100.0),
+        ("E005", "محوطه زرافه‌ها", 5, 24.0, 40.0),
+    ]
+    
+    for data in enclosures_data:
+        enclosure = Enclosure(*data)
+        zoo.add_enclosure(enclosure)
+    
+    # اختصاص حیوانات به محوطه‌ها
+    assignments = [
+        ("A001", "E001"), ("A002", "E001"), ("A007", "E005"),
+        ("A003", "E002"), ("A008", "E002"),
+        ("A004", "E003"), ("A005", "E003"),
+        ("A006", "E004"),
+    ]
+    
+    for animal_id, enclosure_id in assignments:
+        zoo.assign_animal_to_enclosure(animal_id, enclosure_id)
+    
+    # ایجاد کارکنان
+    staff_data = [
+        ("S001", "علی محمدی", "سرپرست", "صبح"),
+        ("S002", "مریم احمدی", "دامپزشک", "ظهر"),
+        ("S003", "رضا کریمی", "نگهبان", "شب"),
+        ("S004", "فاطمه حسینی", "غذادهنده", "صبح"),
+    ]
+    
+    for data in staff_data:
+        staff = Staff(*data)
+        zoo.add_staff(staff)
+    
+    # ثبت برخی بازدیدکنندگان
+    zoo.register_visitor(150, 50000)
+    zoo.register_visitor(75, 50000)
+    
+    return zoo
+
+
+def main():
+    """تابع اصلی برای اجرای نمونه"""
+    print("=" * 60)
+    print("سیستم رباتیک مدیریت باغ وحش")
+    print("=" * 60)
+    
+    # ایجاد باغ وحش نمونه
+    zoo = create_sample_zoo()
+    
+    print("\n✅ باغ وحش نمونه با موفقیت ایجاد شد!")
+    print(f"   نام باغ وحش: {zoo.zoo_name}")
+    print(f"   تعداد حیوانات: {len(zoo.animals)}")
+    print(f"   تعداد محوطه‌ها: {len(zoo.enclosures)}")
+    print(f"   تعداد کارکنان: {len(zoo.staff)}")
+    
+    # غذا دادن به همه حیوانات
+    print("\n🍽️ در حال غذا دادن به همه حیوانات...")
+    feeding_result = zoo.feed_all_animals("مخلوط مخصوص", 2.5)
+    print(f"   موفق: {feeding_result['success']} حیوان")
+    
+    # بررسی سلامت
+    print("\n🏥 در حال بررسی سلامت حیوانات...")
+    health_result = zoo.health_check_all("دکتر احمدی")
+    print(f"   بررسی شده: {health_result['checked']} حیوان")
+    if health_result['concerns']:
+        print(f"   ⚠️ موارد نگران‌کننده: {len(health_result['concerns'])}")
+    
+    # تمیز کردن محوطه‌ها
+    print("\n🧹 در حال تمیز کردن محوطه‌ها...")
+    cleaning_result = zoo.clean_all_enclosures("تیم نظافت")
+    print(f"   تمیز شده: {cleaning_result['cleaned']} محوطه")
+    
+    # ثبت بازدیدکنندگان جدید
+    print("\n👥 ثبت بازدیدکنندگان جدید...")
+    zoo.register_visitor(50, 50000)
+    
+    # نمایش آمار
+    print("\n📊 آمار باغ وحش:")
+    stats = zoo.get_zoo_statistics()
+    print(f"  总收入: {stats['daily_revenue']:,.0f} تومان")
+    print(f"   بازدیدکنندگان کل: {stats['total_visitors']} نفر")
+    
+    # تولید گزارش
+    print("\n📝 گزارش روزانه:")
+    report = zoo.generate_report("daily")
+    print(report)
+    
+    # صادرات داده‌ها
+    print("\n💾 در حال صادرات داده‌ها...")
+    export_result = zoo.export_data("zoo_data.json")
+    print(f"   {export_result}")
+    
+    print("\n" + "=" * 60)
+    print("سیستم رباتیک مدیریت باغ وحش آماده به کار است!")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()
